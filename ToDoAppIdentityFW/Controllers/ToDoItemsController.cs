@@ -146,77 +146,57 @@ namespace ToDoAppIdentityFW.Controllers
             return View(viewModel);
         }
 
-        // POST: ToDoItems/Edit/5
-        // To protect from overposting attacks, please enable the specific properties you want to bind to, for 
-        // more details see http://go.microsoft.com/fwlink/?LinkId=317598.
+        // POST: TodoItems/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Title,ToDoStatusId,ApplicationUserId")] ToDoItem toDoItem)
+        public async Task<ActionResult> Edit(int id, TodoItemViewModel viewModel)
         {
-            if (id != toDoItem.Id)
+            try
             {
-                return NotFound();
-            }
+                var user = await GetCurrentUserAsync();
+                var item = new ToDoItem()
+                {
+                    Id = viewModel.Id,
+                    Title = viewModel.Title,
+                    ToDoStatusId = viewModel.TodoStatusId,
+                    ApplicationUserId = user.Id
+                };
 
-            if (ModelState.IsValid)
-            {
-                try
-                {
-                    _context.Update(toDoItem);
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!ToDoItemExists(toDoItem.Id))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
+                _context.ToDoItem.Update(item);
+                await _context.SaveChangesAsync();
+
                 return RedirectToAction(nameof(Index));
             }
-            ViewData["ApplicationUserId"] = new SelectList(_context.ApplicationUsers, "Id", "Id", toDoItem.ApplicationUserId);
-            ViewData["ToDoStatusId"] = new SelectList(_context.ToDoStatus, "Id", "Title", toDoItem.ToDoStatusId);
-            return View(toDoItem);
+            catch
+            {
+                return View();
+            }
         }
 
-        // GET: ToDoItems/Delete/5
-        public async Task<IActionResult> Delete(int? id)
+        // GET: TodoItems/Delete/5
+        public async Task<ActionResult> Delete(int id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
+            var item = await _context.ToDoItem.Include(s => s.ToDoStatus).FirstOrDefaultAsync(i => i.Id == id);
 
-            var toDoItem = await _context.ToDoItem
-                .Include(t => t.ApplicationUser)
-                .Include(t => t.ToDoStatus)
-                .FirstOrDefaultAsync(m => m.Id == id);
-            if (toDoItem == null)
-            {
-                return NotFound();
-            }
-
-            return View(toDoItem);
+            return View(item);
         }
 
-        // POST: ToDoItems/Delete/5
-        [HttpPost, ActionName("Delete")]
+        // POST: TodoItems/Delete/5
+        [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
+        public async Task<ActionResult> Delete(int id, ToDoItem item)
         {
-            var toDoItem = await _context.ToDoItem.FindAsync(id);
-            _context.ToDoItem.Remove(toDoItem);
-            await _context.SaveChangesAsync();
-            return RedirectToAction(nameof(Index));
-        }
+            try
+            {
+                _context.ToDoItem.Remove(item);
+                await _context.SaveChangesAsync();
 
-        private bool ToDoItemExists(int id)
-        {
-            return _context.ToDoItem.Any(e => e.Id == id);
+                return RedirectToAction(nameof(Index));
+            }
+            catch
+            {
+                return View();
+            }
         }
         private Task<ApplicationUser> GetCurrentUserAsync() => _userManager.GetUserAsync(HttpContext.User);
     }
